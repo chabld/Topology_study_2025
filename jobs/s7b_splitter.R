@@ -1,4 +1,13 @@
 #splitter script to get 3 figures instead of 1 massive one for s7 outputs. Is run during s7 via source().
+library(ggplot2)
+combined_table=readRDS('datasets_stat/stat_output_HCP_alltasks.rds')
+label_lookup <- combined_table %>% select(task_category, category) %>% distinct()
+
+#Rename level for clarity
+levels(combined_table$cog_name)[ levels(combined_table$cog_name) == "Self-regulation/Impulsivity (Delay Discounting 200k)" ] <- "Self-regulation (Delay Discounting 200)"
+levels(combined_table$cog_name)[ levels(combined_table$cog_name) == "Processing Speed  (Pattern Completion Processing Speed)" ] <- "Processing Speed  (Pattern Comparison Processing Speed)"
+levels(combined_table$cog_name)[ levels(combined_table$cog_name) == "Episodic Memory (Picture Sequence Memory)" ] <- "Visual Episodic Memory (Picture Sequence Memory)"
+
 
 cog_levels <- levels(combined_table$cog_name)
 cog_groups <- split(cog_levels, ceiling(seq_along(cog_levels) / 5))
@@ -31,13 +40,14 @@ for (i in seq_along(cog_groups)) {
     geom_ribbon(aes(x = as.numeric(task_category), ymin = min_rsq, ymax = rsq_vals,
                     group = interaction(taskFC, ntw_type), fill = ntw_type), alpha = 0.2) +
     geom_point(aes(fill = ntw_type, shape = ntw_type, color = ntw_type), size = 3, stroke = 0.5) +
+    #Significant asterisks, FDR corrected
     geom_point(data = subset(data_subset, p_vals_fdr < 0.05),
-               aes(fill = ntw_type), shape = 8, size = 2, stroke = 1, color = "black", show.legend = FALSE) +
+               aes(fill = ntw_type), shape = 8, size = 3, stroke = 1, color = "black", show.legend = FALSE) +
     geom_point(data = subset(data_subset, p_vals < 0.05),
                aes(fill = ntw_type), shape = 8, size = 0.5, stroke = 1, color = "black", show.legend = FALSE) +
     geom_text(aes(label = paste0('β=', round(adjb_vals, 2)),
                   y = rsq_vals + y_offset, hjust = label_hjust),
-              size = 2, color = "#5E5E5E", angle = 90, vjust = 0.5) +
+              size = 3, color = "#5E5E5E", angle = 90, vjust = 0.5) + #beta values
     geom_vline(data = taskFC_breaks, aes(xintercept = x_break),
                linetype = "dashed", color = "grey50", linewidth = 0.5) +
     geom_text(data = taskFC_labels,
@@ -64,6 +74,13 @@ for (i in seq_along(cog_groups)) {
       "Minimum Spanning Tree" = "#C0915C",
       "Raw functional connectivity" = "#9933FF"
     )) +
+    labs(
+      x = "Network topology measure",
+      y = "Partial R-Squared",
+      fill = "Category",
+      shape = "Category",
+      color = "Category"
+    ) +
     facet_wrap(~cog_name, ncol = 1, scales = "free_y",
                labeller = label_wrap_gen(width = Inf)) +
     theme_minimal() +
@@ -71,8 +88,9 @@ for (i in seq_along(cog_groups)) {
       plot.margin = margin(10, 10, 10, 20),
       panel.grid.major.x = element_blank(),
       panel.grid.minor.x = element_blank(),
-      axis.text.x = element_text(angle = 90, hjust = 1),
-      strip.text = element_text(size = 10, face = "bold", lineheight = 1.3, margin = margin(t = 6, b = 6)),
+      axis.title.y = element_text(size = 16, vjust=1),
+      axis.text.x = element_text(size=12, angle = 90, hjust = 1),
+      strip.text = element_text(size = 16, face = "bold", lineheight = 1.3, margin = margin(t = 6, b = 6)),
       legend.position = "bottom",
       legend.justification = "centre",
       legend.margin = margin(-10, 0, 0, 0)

@@ -11,7 +11,7 @@ library(emmeans)
 for (scan in c("3T", "7T"))
 {
 
-  dataset_stat=readRDS('datasets_stat/taskFC/stat_output_HCP_alltasks.rds')
+  dataset_stat=readRDS('datasets_stat/stat_output_HCP_alltasks.rds')
   
   if(scan=="3T")
   {
@@ -54,6 +54,30 @@ for (scan in c("3T", "7T"))
     
     return(flags)
   }
+  
+  ###############################################################
+  #####################OPTIONAL GROUPING#########################
+  #needs underscore to help later name parsing
+  dataset_stat$ntw_type <- gsub(" ", "_", dataset_stat$ntw_type)
+  
+  #Want to group topology measures?
+  #wide, threshold, or none
+  grouping=''
+  if (grouping=='wide')
+  {
+    #wide clustering
+    dataset_stat$category=as.factor(dataset_stat$ntw_type)
+    levels(dataset_stat$category) <- levels(factor(dataset_stat$ntw_type))
+  }
+  if (grouping=='threshold')
+  {
+    #limited clustering
+    levels(dataset_stat$category) <- c(levels(dataset_stat$category), "Global_efficiency","Clustering_coefficient")
+    dataset_stat$category[grep('GLOB',dataset_stat$category)]="Global_efficiency"
+    dataset_stat$category[grep('CLUST',dataset_stat$category)]="Clustering_coefficient"
+    dataset_stat$category <- droplevels(dataset_stat$category) #drops now-empty lvl
+  }
+  
   
   ###############################################################
   #############################MODEL#############################
@@ -162,14 +186,22 @@ for (scan in c("3T", "7T"))
   #mode = df.error to keep same df throughout instead of computing a new one per contrast (leads to near 0 dfs which results in absurd SEs in this data), more stable for gls()
   EMM <- emmeans::emmeans(model, ~ category * taskFC, data = dataset,
                  mode='df.error')
-  pairwise_comp <- emmeans::pairs(EMM, infer = TRUE, adjust = "none")
+  pairwise_comp <- pairs(EMM, infer = TRUE, adjust = "none")
   
   #don't count pairwise comparisons within own topology measure category:
   library(stringr)
   contrasts=as.data.frame(pairwise_comp)
-  duplicates=which(str_count(contrasts$contrast,'Minimum|Leaf|Diameter|LEAF|DIAM')==2 | 
-                   str_count(contrasts$contrast,'Persistent|Backbone|Cycle|BS|BD|CS')==2 |
-                   str_count(contrasts$contrast,'Clustering|Global|GLOB|CLUST')==2)
+  duplicates=which(str_count(contrasts$contrast,
+                             'Minimum|Leaf|Diameter|LEAF|DIAM')==2 | 
+                   str_count(contrasts$contrast,
+                             'Persistent|Backbone|Cycle|BS|BD|CS')==2 |
+                   str_count(contrasts$contrast,
+                             'Clustering|Global|GLOB|CLUST')==2 |
+                   str_count(contrasts$contrast,
+                             'RAW_FC')==2 |
+                   str_count(contrasts$contrast,
+                             'REST')==0
+                     )
   if (length(duplicates)!=0){contrasts=contrasts[-duplicates,]}
   
   #specify scanner it came from
@@ -189,6 +221,7 @@ contrasts_3T=contrasts[which(contrasts$scan=='3T'),]
 contrasts_7T=contrasts[which(contrasts$scan=='7T'),]
 
 ###############################################################
+###############################################################
 #############################Plots#############################
 
 library(ggplot2)
@@ -198,7 +231,8 @@ library(stringr)
 
 for (scan in c("3T", "7T"))
 {
-
+  if (scan=='7T' & NROW(contrasts_7T)==0){plot_7T=NULL; break}
+  
   contrasts=get(paste0("contrasts_", scan))
   #identify first and second variable in each contrast
   df_contrasts <- as.data.frame(contrasts) %>%
@@ -232,7 +266,7 @@ for (scan in c("3T", "7T"))
   #Colour contrast depending on strongest measure in each comparison contrast
   #Accounts for different possible labels
   color_map <- c(
-    "Graph measures" = "#3468A4",
+    "Graph_measures" = "#3468A4",
     "Clustering coefficient" = "#4180C9", "CLUST" = "#4180C9",
     "Clustering coefficient (t.10%)"="#4180C9","CLUSTERING0.1"="#4180C9",
     "Clustering coefficient (t.20%)"="#4180C9","CLUSTERING0.2"="#4180C9", 
@@ -241,14 +275,14 @@ for (scan in c("3T", "7T"))
     "Global efficiency (t.10%)" = "#3468A4", "GLOB_EFF0.1" = "#3468A4",
     "Global efficiency (t.20%)" = "#3468A4", "GLOB_EFF0.2" = "#3468A4",
     "Global efficiency (t.30%)" = "#3468A4","GLOB_EFF0.3" = "#3468A4",
-    "Persistent Homology" = "#95435C",  
+    "Persistent_Homology" = "#95435C",  
     "Backbone Strength" = "#95435C", "PH_BS" = "#95435C",
     "Backbone Dispersion" = "#733447","PH_BD" = "#733447",
     "Cycle Strength" = "#522633","PH_CS" = "#522633", 
-    "Minimum Spanning Tree" = "#C0915C",
+    "Minimum_Spanning_Tree" = "#C0915C",
     "Diameter" = "#DCA769","MST_DIAM" = "#DCA769",
     "Leaf fraction" = "#C0915C","MST_LEAF" = "#C0915C",
-    "Raw functional connectivity" = "#9933FF",
+    "Raw_functional_connectivity" = "#9933FF",
     "Mean connectivity" = "#9933FF","RAW_FC" = "#9933FF"
   )
   
@@ -280,26 +314,26 @@ for (scan in c("3T", "7T"))
   #rename fMRI task for clarity
   taskFC_truenames <- c( "WM" = "WORKING\nMEMORY", "LG" = "LANGUAGE", "SOCIAL" = "SOCIAL\nCOGNITION")
   taskFC_labels <- taskFC_labels %>%
-    mutate(taskFC_leader = recode(taskFC_leader, !!!taskFC_truenames))
+    mutate(taskFC_leader = dplyr::recode(taskFC_leader, !!!taskFC_truenames))
   
   #rename legend for clarity
-  category_names <- c( "GLOB_EFF" = "Global efficiency", "CLUST" = "Clustering coefficient", "PH_BS" = "Backbone Strength", "PH_CS" = "Cycle Strength", "PH_BD" = "Backbone Dispersion", "MST_LEAF" = "Leaf fraction", "MST_DIAM" = "Diameter", "RAW_FC" = "Mean connectivity" )
+  category_names <- c( "GLOB_EFF" = "Global efficiency", "CLUST" = "Clustering coefficient", "PH_BS" = "Backbone Strength", "PH_CS" = "Cycle Strength", "PH_BD" = "Backbone Dispersion", "MST_LEAF" = "Leaf fraction", "MST_DIAM" = "Diameter", "RAW_FC" = "Mean connectivity")
   df_contrasts <- df_contrasts %>%
-    mutate(prefix = recode(prefix, !!!category_names))
-  #only plot at for second plot to avoid repeating
+    mutate(prefix = dplyr::recode(prefix, !!!category_names))
+  #only keep legend from 3T plot has it covers all metrics
   if (scan == "7T") {
     legend_theme <- theme(
       legend.position = "bottom",
       legend.justification = c(0, 0.5),
       legend.box = "horizontal"
     )
-    legend_scale <- scale_color_manual(values = color_map, name = "Stronger network measure:")
+    legend_scale <- scale_color_manual(values = color_map)
     plot_title=NULL
     y_label="Estimate ± SE"
   } else {
     legend_theme <- theme(legend.position = "none")
-    legend_scale <- scale_color_manual(values = color_map, guide = "none")
-    plot_title="Contrasts in estimated log(partial R-squared) between conditions"
+    legend_scale <- scale_color_manual(values = color_map, name = "Stronger network measure:")
+    #plot_title="Contrasts in estimated log(partial R-squared) between conditions"
     y_label=NULL
   }
   
@@ -307,17 +341,17 @@ for (scan in c("3T", "7T"))
   meascontrast_plot=ggplot(df_contrasts, aes(x = fct_inorder(contrast_label), y = estimate)) +
     geom_point(aes(color = prefix), size = 3) +  
     geom_errorbar(aes(ymin = estimate - SE, ymax = estimate + SE, color = prefix), width = 0.2, linewidth = 1.2) +
-    geom_text(aes(label = sig, y = estimate + 1.1 * SE), # nudges asterisk above the bar
-              hjust = 0, size = 6, color = "black") +
+    geom_text(aes(label = sig, y = estimate + 1.1 * SE), #beyond SE bar
+              vjust=0.8, hjust =0, size = 6, color = "black") +
     geom_hline(yintercept = 0, linetype = "dashed", color = "grey50", linewidth = 0.5) +
     coord_flip() +
     labs(y=y_label, x = "",
-         title=plot_title) + 
-    scale_color_manual(values = color_map, name='Stronger network measure') +
+         #title=plot_title
+         ) + 
     theme_minimal() +
-    theme(
-      plot.title.position = "plot", 
-      plot.title = element_text(hjust = 0.5)) +
+    #theme(plot.title.position = "plot", 
+    #  plot.title = element_text(hjust = 0.5)) +
+    legend_scale +
     legend_theme +
     geom_vline(data = group_breaks, aes(xintercept = y), linetype = "dashed", color = "grey70", linewidth = 0.6) +
     geom_text(data = taskFC_labels,
@@ -326,19 +360,47 @@ for (scan in c("3T", "7T"))
               angle = 0,
               hjust = 0.5,
               color = "grey30", alpha = 0.15,
-              size = 6, fontface = "bold",
+              size = 6, 
+              lineheight = 0.8,
+              fontface = "bold",
               family = "Impact") +
       guides(color = guide_legend(nrow = 1))
   
   assign(x = paste0('plot_',scan), meascontrast_plot)
+  
+  if (scan=="7T") #remove legend from first plot
+  { plot_7T <- plot_7T + guides(color = "none")}
 }
 
-layout <- matrix(c(1, 2), ncol = 1, byrow = TRUE)
-finalplot <- gridExtra::grid.arrange(
-  plot_3T, plot_7T,
-  layout_matrix = layout,
-  heights = c(0.862, 0.138)
-)
+library(patchwork) 
+if (!is.null(plot_7T))
+{
+finalplot <- plot_3T / plot_7T +
+             plot_layout(guides = "collect", heights = c(0.99, 0.01)) &
+  theme( plot.margin = margin(0,0,5,0),
+         legend.position = "bottom", 
+         legend.box = "horizontal", 
+         legend.box.just = "left",
+         legend.key.height = unit(0.2, "cm"), 
+         legend.margin = margin(-10, 0, 0, -250),
+         legend.text=element_text(size=11)
+         )
+} else
+{
+  finalplot <- plot_3T +
+    plot_layout(guides = "collect") &
+    theme( plot.margin = margin(0,0,5,0),
+           legend.position = "bottom", 
+           legend.box = "horizontal", 
+           legend.box.just = "left",
+           legend.key.height = unit(0.2, "cm"), 
+           legend.margin = margin(-10, 0, 0, -250),
+           legend.text=element_text(size=11)
+    )
+}
 plot(finalplot)
 
-ggsave(filename = 'figures/taskFC/pairwise_comparisons_restbaseline.png', plot = finalplot, units = 'px', width = 4200, height = 6800, dpi = 300)
+ggsave(filename = 'figures/taskFC/pairwise_comparisons_restvstask.png', plot = finalplot, units = 'px', width = 3000, height = 1500, dpi = 300)
+
+#For all contrasts between tasks, not only task vs rest
+#ggsave(filename = 'figures/taskFC/pairwise_comparisons.png', plot = finalplot, units = 'px', width = 4200, height = 8000, dpi = 300)

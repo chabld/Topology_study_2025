@@ -5,7 +5,7 @@
 ##############################PLOTTING#########################
 
 library(ggplot2)
-combined_table=general_combined_table 
+combined_table=readRDS('datasets_stat/stat_output_HCP_alltasks.rds') 
 
 #FDR correction
 combined_table$p_vals_fdr=p.adjust(combined_table$p_vals,method = 'fdr')
@@ -14,32 +14,16 @@ combined_table <- combined_table %>%
   filter(any(p_vals_fdr < 0.05)) %>%
   ungroup()
 
-#factorise trial type
-combined_table$cog_name <- factor(combined_table$cog_name, levels = unique(combined_table$cog_name))
-#remove negative rsquares (possible modelling errors due to it being extremely low)
-combined_table[combined_table[, "rsq_vals"] < 0, "rsq_vals"] <- 0
-
-#prepare network category for colouring in plot
-combined_table$ntw_type <- NA
-for (ntnum in 1:length(combined_table$category)) {
-  nt=combined_table$category[ntnum]
-  if (nt=='CLUSTERING0.1'|nt=='CLUSTERING0.2'|nt=='CLUSTERING0.3'|nt=='GLOB_EFF0.1'|nt=='GLOB_EFF0.2'|nt=='GLOB_EFF0.3')
-  {combined_table$ntw_type[ntnum]='Graph measures'}
-  if (nt=='MST_DIAM'|nt=='MST_LEAF')
-  {combined_table$ntw_type[ntnum]='Minimum Spanning Tree'}
-  if (nt=='PH_BD'|nt=='PH_BS'|nt=='PH_CS')
-  {combined_table$ntw_type[ntnum]='Persistent Homology'}
-  if (nt=='RAW_FC')
-  {combined_table$ntw_type[ntnum]='Raw functional connectivity'}
-}
-
 #rename cognitive measures for clarity in the plot
 cog_names <- c(
   "Fluid Intelligence (Penn Progressive Matrices)"= "Penn Progressive Matrices",    
   "Vocabulary Comprehension  (Picture Vocabulary)"="Vocabulary",         
-  "Spatial Orientation (Variable Short Penn Line Orientation Test)"="Spatial Orientation",
-  "Cognition Fluid Composite"="Cognition Fluid (Composite)", 
-  "Cognition Crystallized Composite"="Cognition Crystallized (Composite)"
+  "Spatial Orientation (Variable Short Penn Line Orientation Test)"="Spatial\n\n\n\nOrientation",
+  "Cognition Fluid Composite"="Cognition Fluid\n\n\n\n(Composite)", 
+  "Cognition Crystallized Composite"="Cognition\n\n\n\nCrystallized\n\n\n\n(Composite)",
+  "Verbal Episodic Memory (Penn Word Memory Test)"="Episodic Memory\n\n\n\n(Verbal)",
+  "Episodic Memory (Picture Sequence Memory)"="Episodic Memory\n\n\n\n(Visual)",
+  "Self-regulation/Impulsivity (Delay Discounting 200k)"="Self-regulation"
 )
 #apply
 combined_table$cog_name <- dplyr::coalesce(
@@ -62,20 +46,6 @@ category_names <- c(
   "MST_DIAM" = "Diameter",
   "RAW_FC" = "Mean connectivity"
 )
-#replace abbreviations with full names in the `category` column
-combined_table$category_abbr <- combined_table$category
-combined_table$category <- category_names[as.character(combined_table$category_abbr)]
-
-#rename task FC for clarity in the plot
-combined_table$taskFC[which(combined_table$taskFC=='LG')]='LANGUAGE'
-combined_table$taskFC[which(combined_table$taskFC=='WM')]='WORKING\nMEMORY'
-combined_table$taskFC[which(combined_table$taskFC=='SOCIAL')]='SOCIAL\n COGNITION'
-combined_table$taskFC[which(combined_table$taskFC=='RELATIONAL')]='RELATIONAL\nPROCESSING'
-combined_table$taskFC[which(combined_table$taskFC=='REST3T')]='REST (3T)'
-combined_table$taskFC[which(combined_table$taskFC=='REST7T')]='REST (7T)'
-combined_table$taskFC <- factor(combined_table$taskFC,
-                                levels = c("GAMBLING", "LANGUAGE", "MOTOR", "RELATIONAL\nPROCESSING", "SOCIAL\n COGNITION", "WORKING\nMEMORY", "REST (3T)", "REST (7T)", "MOVIE"))
-
 #add categories per taskFC 
 combined_table$task_category <- paste0(combined_table$category, "_", combined_table$taskFC)
 #create lookup table for category ordering within ntw_type
@@ -109,21 +79,10 @@ taskFC_breaks <- combined_table %>%
   filter(rank < max(rank)) %>%
   ungroup()
 
-#get max rsquare of each dimension for later computation, also ymin for plot
-max_rsq_per_facet <- combined_table %>%
-  group_by(cog_name, taskFC) %>%
-  summarise(max_rsq = max(rsq_vals, na.rm = TRUE), .groups = "drop")
-min_rsq_per_facet <- combined_table %>%
-  group_by(cog_name, taskFC) %>%
-  summarise(min_rsq = min(rsq_vals, na.rm = TRUE), .groups = "drop")
-combined_table <- combined_table %>%
-  left_join(max_rsq_per_facet, by = c("cog_name", "taskFC")) %>%
-  left_join(min_rsq_per_facet, by = c("cog_name", "taskFC"))
-
 #this adds the offset for relative position of beta value
 combined_table <- combined_table %>%
   group_by(cog_name) %>%
-  mutate(y_offset = (max(rsq_vals) - min(rsq_vals)) * 0.1)  
+  mutate(y_offset = mean(rsq_vals) + 0.001)  
 combined_table <- combined_table %>% mutate(label_hjust = 0.5) 
 
 #dropped non showing levels after FDR correction
@@ -146,7 +105,7 @@ geom_ribbon(aes(x = task_category,
   geom_point(aes(fill = ntw_type, shape = ntw_type, color = ntw_type), size = 3, stroke = 0.5) +
   #Significant asterisks, FDR corrected
   geom_point(data = subset(combined_table, p_vals_fdr < 0.05), 
-             aes(fill = ntw_type), shape = 8, size = 2, stroke = 1, color = "black", show.legend = FALSE) + 
+             aes(fill = ntw_type), shape = 8, size = 3, stroke = 1, color = "black", show.legend = FALSE) + 
   #not FDR corrected: lower size
   geom_point(data = subset(combined_table, p_vals < 0.05), 
              aes(fill = ntw_type), shape = 8, size = 0.5, stroke = 1, 
@@ -155,7 +114,7 @@ geom_ribbon(aes(x = task_category,
   geom_text(aes(label = paste0('β=', round(adjb_vals, 2)),
                 y = rsq_vals + y_offset,
                 hjust = label_hjust),
-            size = 2, color = "#5E5E5E",
+            size = 4, color = "#5E5E5E",
             angle=90, vjust=0.5) +
   labs(
     x = "Network Measure",
@@ -174,11 +133,14 @@ geom_ribbon(aes(x = task_category,
     lineheight = 0.2,
     margin = margin(t = 6, b = 6)  #top and bottom padding
   )) +
-  theme(plot.margin = margin(10, 10, 10, 20))+
-  theme(panel.grid.major.x = element_blank(),
-        panel.grid.minor.x = element_blank()) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  theme(strip.text = element_text(size = 10, face = "bold", 
+  theme(plot.margin = margin(10, 10, 10, 20),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        axis.title.y = element_text(size = 16, vjust=1),
+        axis.title.x = element_text(size = 16),
+        axis.text.y = element_text(size = 12),
+        axis.text.x = element_text(size=12, angle = 90, hjust = 1),
+        strip.text = element_text(size = 12, face = "bold", 
                                   lineheight = 0.2)) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.1))) +
   scale_fill_manual(values = c(
@@ -202,7 +164,9 @@ geom_ribbon(aes(x = task_category,
   theme(
     legend.position = "bottom", 
     legend.justification = "centre",
-    legend.margin = margin(-10, 0, 0, 0)) + 
+    legend.margin = margin(-10, 0, 0, 0),
+    legend.title = element_text(size = 14, face = "bold"),
+    legend.text = element_text(size = 14)) +
   guides(fill = guide_legend(override.aes = list(stroke = 0)))  #legend clean, no halos
 
 multi_taskFC_facets <- combined_table %>%
@@ -244,4 +208,4 @@ p3 <- p3 + scale_x_discrete(labels = setNames(label_lookup$category, label_looku
 print(p3)
 
 ggsave(paste0("figures/taskFC/HCP_task-specific_perf_alltasks_FDRonly.png"), 
-       plot = p3, units = 'px', width=5300, height=2000, limitsize=F)
+       plot = p3, units = 'px', width=6500, height=2400, limitsize=F)

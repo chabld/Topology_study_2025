@@ -29,7 +29,7 @@ for (taskFC in c('REST3T','REST7T','MOTOR','GAMBLING','LG','WM','SOCIAL','RELATI
                    NTW_measures)
   
   #rename cognitive tests for clarity
-  meas_of_interest_renamed=c('Episodic Memory (Picture Sequence Memory)', 'Cognitive Flexibility (Dimensional Change Card Sort)', 'Inhibition (Flanker Task)', 'Fluid Intelligence (Penn Progressive Matrices)', 'Oral Reading Recognition', 'Vocabulary Comprehension  (Picture Vocabulary)','Processing Speed  (Pattern Completion Processing Speed)', 'Self-regulation/Impulsivity (Delay Discounting 200k)', 'Spatial Orientation (Variable Short Penn Line Orientation Test)', 'Sustained Attention (Short Penn Continuous Performance Test)', 'Verbal Episodic Memory (Penn Word Memory Test)', 'Working Memory', 'Cognition Fluid Composite', 'Cognition Crystallized Composite', 'Emotion Recognition (Penn Emotion Recognition Test)')
+  meas_of_interest_renamed=c('Visual Episodic Memory (Picture Sequence Memory)', 'Cognitive Flexibility (Dimensional Change Card Sort)', 'Inhibition (Flanker Task)', 'Fluid Intelligence (Penn Progressive Matrices)', 'Oral Reading Recognition', 'Vocabulary Comprehension  (Picture Vocabulary)','Processing Speed  (Pattern Comparison Processing Speed)', 'Self-regulation/Impulsivity (Delay Discounting 200)', 'Spatial Orientation (Variable Short Penn Line Orientation Test)', 'Sustained Attention (Short Penn Continuous Performance Test)', 'Verbal Episodic Memory (Penn Word Memory Test)', 'Working Memory', 'Cognition Fluid Composite', 'Cognition Crystallized Composite', 'Emotion Recognition (Penn Emotion Recognition Test)')
   colnames(dataset_lm)[colnames(dataset_lm) %in% meas_of_interest] = meas_of_interest_renamed
   
   #all cognitive measures stacked in columns

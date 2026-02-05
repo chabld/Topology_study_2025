@@ -13,7 +13,7 @@ library(tidyverse)
 for (scan in c('3T','7T'))
 {
   #load data from cog specific linear models (s7)
-  overall_model=readRDS('datasets_stat/taskFC/stat_output_HCP_alltasks.rds')
+  overall_model=readRDS('datasets_stat/stat_output_HCP_alltasks.rds')
   
   #only applicable tasks
   if(scan=="3T")

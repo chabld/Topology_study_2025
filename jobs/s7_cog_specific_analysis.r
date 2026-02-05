@@ -134,7 +134,7 @@ for (taskFC in c('REST3T','REST7T','MOTOR','GAMBLING','LG','WM','SOCIAL','RELATI
     dataset_lm_resp[[u]] <- as.numeric(scale(dataset_lm_resp[[u]]))}
   for (v in colnames(NTW_measures)) {
     dataset_lm_resp[[v]] <- as.numeric(scale(dataset_lm_resp[[v]]))}
-  
+
   #function to collate statistics to report from all models across loops
   mod_tables=function(dataset_lm_resp){ 
     #prepare pvals table for correction
@@ -423,12 +423,12 @@ label_lookup <- combined_table %>% select(task_category, category) %>% distinct(
 p3 <- p3 + scale_x_discrete(labels = setNames(label_lookup$category, label_lookup$task_category))
 print(p3)
 
-#split in 3 for clarity
-source('#jobs/s7b_splitter.R')
+#save .rds for further analyses
+saveRDS(combined_table,file=paste0('datasets_stat/stat_output_HCP_alltasks.rds'))
 
 #whole unsplitted image
-ggsave(paste0("figures/taskFC/HCP_task-specific_perf_alltasks.png"), 
-       plot = p3, units = 'px', width=15000, height=6000, limitsize=F)
+#ggsave(paste0("figures/taskFC/HCP_task-specific_perf_alltasks.png"), 
+#       plot = p3, units = 'px', width=15000, height=6000, limitsize=F)
 
-#save .rds for further analyses
-saveRDS(combined_table,file=paste0('datasets_stat/taskFC/stat_output_HCP_alltasks.rds'))
+#split in 3 for clarity[
+source('#jobs/s7b_splitter.R')

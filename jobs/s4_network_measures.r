@@ -36,8 +36,7 @@ for (taskFC in c('REST3T','REST7T','MOTOR','GAMBLING','LG','WM','SOCIAL','RELATI
     FCmat[lower.tri(FCmat)] <- tm[lower.tri(tm, diag = F)]
     diag(FCmat) <- 1 #diag needed for PHfconn/MST building, will be ignored by igraph
     FCmat[FCmat<0]=0 #exclude negative edges
-    FCmat=FCmat[1:200,1:200] #no aseg
-    
+
     ############################################################
     ####################Basic raw FC############################
     #mean Fisher z‐transformed correlation coefficient of all pairs of nodes
